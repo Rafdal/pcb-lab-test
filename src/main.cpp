@@ -67,9 +67,9 @@ void setup()
 
 
 	// INTERRUPT
-	pinMode(interruptPin_D15, INPUT_PULLUP); // Pin de interrupción
-	pinMode(interruptPin_D16, INPUT_PULLUP); // Pin de interrupción
-											 // Configuración de interrupciones
+	pinMode(interruptPin_D15, INPUT); // Pin de interrupción
+	pinMode(interruptPin_D16, INPUT); // Pin de interrupción
+	// Configuración de interrupciones
 	attachInterrupt(digitalPinToInterrupt(interruptPin_D15), interruptHandler_D15, CHANGE);
 	attachInterrupt(digitalPinToInterrupt(interruptPin_D16), interruptHandler_D16, CHANGE);
 }
@@ -88,6 +88,7 @@ void testInterrupts()
 		Serial.print(startMillis_D15);
 		Serial.print(" - ");
 		Serial.println(endMillis_D15);
+		interruptFlag_D15_state = false; // Reinicia el indicador de interrupción
 	}
 	if (interruptFlag_D16_state)
 	{
@@ -95,6 +96,7 @@ void testInterrupts()
 		Serial.print(startMillis_D16);
 		Serial.print(" - ");
 		Serial.println(endMillis_D16);
+		interruptFlag_D16_state = false; // Reinicia el indicador de interrupción
 	}
 }
 
