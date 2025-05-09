@@ -97,14 +97,14 @@ void testSPI() {
 
 void testI2(){
 
-  float pressure = BARO.readPressure();
+  float pressure = BARO.readPressure();//lectura de presion
   float altitude = 44330 * ( 1 - pow(pressure/101.325, 1/5.255) );
   // print the sensor value
   Serial.print(altitude);
   Serial.println(" m");
 
-Serial.println(HS300x.readTemperature());
-Serial.println(HS300x.readHumidity());
+Serial.println(HS300x.readTemperature());//lectura de temperatura
+Serial.println(HS300x.readHumidity());//lectura de humedad
 
 }
 
