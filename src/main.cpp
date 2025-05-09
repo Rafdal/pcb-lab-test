@@ -44,6 +44,14 @@ void setup() {
   	pinMode(4, OUTPUT);    // D4
   	pinMode(20, OUTPUT);   // D20
   	pinMode(21, OUTPUT);   // D21
+	//I2C
+ 	if (!BARO.begin()) { //inicializo
+    	Serial.println("Failed to initialize pressure sensor!");
+    	while (1);
+	}	
+	if (!HS300x.begin()) {
+  		Serial.println("Failed to initialize humidity temperature sensor!");
+	}
 }
 
 void loop() {
@@ -88,21 +96,16 @@ void testSPI() {
 }
 
 void testI2(){
-if (!BARO.begin()) { //inicializo
-    Serial.println("Failed to initialize pressure sensor!");
-    while (1);
-}
-if (!HS300x.begin()) {
-  Serial.println("Failed to initialize humidity temperature sensor!");
-}
-float pressure = BARO.readPressure();//toma de datos
 
-Serial.print("Pressure = ");
-Serial.print(pressure);
+  float pressure = BARO.readPressure();
+  float altitude = 44330 * ( 1 - pow(pressure/101.325, 1/5.255) );
+  // print the sensor value
+  Serial.print(altitude);
+  Serial.println(" m");
+
 Serial.println(HS300x.readTemperature());
 Serial.println(HS300x.readHumidity());
 
-BARO.end();
 }
 
 void testPINES(unsigned long currentMillis) {
