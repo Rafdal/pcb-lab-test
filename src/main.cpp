@@ -56,57 +56,61 @@ void setup()
 	Serial.begin(115200); // Consola Serial
 	while (!Serial)
 		;
+	Serial.println("Iniciando...");
+	delay(500);
 	// UART
 	Serial1.begin(115200); // UART física integrada
 	// GPS
 	GPS.begin(115200); // UART por software (GPS)
 	// SPI
 	SPI.begin(); // Inicializa el bus SPI
-	pinMode(CS1, OUTPUT);
-	pinMode(CS2, OUTPUT);
-	digitalWrite(CS1, HIGH);
-	digitalWrite(CS2, HIGH);
+	// pinMode(CS1, OUTPUT);
+	// pinMode(CS2, OUTPUT);
+	// digitalWrite(CS1, HIGH);
+	// digitalWrite(CS2, HIGH);
 	// PINES
-	pinMode(5, OUTPUT);	 // D5
-	pinMode(4, OUTPUT);	 // D4
-	pinMode(20, OUTPUT); // D20
-	pinMode(21, OUTPUT); // D21
+	// pinMode(5, OUTPUT);	 // D5
+	// pinMode(4, OUTPUT);	 // D4
+	// pinMode(20, OUTPUT); // D20
+	// pinMode(21, OUTPUT); // D21
 						 // I2C
 
 	//INTERRUPT
-	pinMode(interruptPin_D15, INPUT_PULLUP); // Pin de interrupción
-	pinMode(interruptPin_D16, INPUT_PULLUP); // Pin de interrupción
+	pinMode(interruptPin_D15, INPUT); // Pin de interrupción
+	pinMode(interruptPin_D16, INPUT); // Pin de interrupción
     	// Configuración de interrupciones
     attachInterrupt(digitalPinToInterrupt(interruptPin_D15), interruptHandler_D15, CHANGE);
     attachInterrupt(digitalPinToInterrupt(interruptPin_D16), interruptHandler_D16, CHANGE);
 
 
-	if (!BARO.begin())
-	{ // inicializo
-		Serial.println("Failed to initialize pressure sensor!");
-		while (1)
-			;
-	}
-	if (!HS300x.begin())
-	{
-		Serial.println("Failed to initialize humidity temperature sensor!");
-	}
+	Serial.println("Setup completo");
+
+	// if (!BARO.begin())
+	// { // inicializo
+	// 	Serial.println("Failed to initialize pressure sensor!");
+	// 	while (1)
+	// 		;
+	// }
+	// if (!HS300x.begin())
+	// {
+	// 	Serial.println("Failed to initialize humidity temperature sensor!");
+	// }
 }
 
 void loop()
 {
-	unsigned long currentMillis = millis();
+	// unsigned long currentMillis = millis();
 
-	if (currentMillis - previousMillis >= interval)
-	{
-		previousMillis = currentMillis;
-		Serial1.print("HOLA_UART1\n");
-		GPS.print("HOLA_GPS\n");
-		testSPI(); // Testea cada 1s
-		testI2();  // Testea cada 1s
-	}
-	TestUARTGPS(); // REAL TIME
-	testPINES(currentMillis);
+	// if (currentMillis - previousMillis >= interval)
+	// {
+	// 	previousMillis = currentMillis;
+	// 	Serial1.print("HOLA_UART1\n");
+	// 	GPS.print("HOLA_GPS\n");
+	// 	testSPI(); // Testea cada 1s
+	// 	testI2();  // Testea cada 1s
+	// }
+	// TestUARTGPS(); // REAL TIME
+	// testPINES(currentMillis);
 	testInterrupts(); // Testea interrupciones
 }
 
@@ -131,10 +135,14 @@ void testSPI()
 
 	digitalWrite(CS1, LOW);
 	response1 = SPI.transfer(0x111A); // 4378 en Hexa
+	//OJO EMA CHEKEA QUE ESTAS MANDANDO 2 BYTES y la funcion te acepta 1 byte nomas, por eso te tira el waring
+	
 	digitalWrite(CS1, HIGH);
 
 	digitalWrite(CS2, LOW);
 	response2 = SPI.transfer(0x30A); // 778 en hexa
+	//OJO EMA CHEKEA QUE ESTAS MANDANDO 2 BYTES y la funcion te acepta 1 byte nomas, por eso te tira el waring
+
 	digitalWrite(CS2, HIGH);
 
 	Serial.println(response1, HEX); // Imprime el valor en hexadecimal CS1
@@ -195,6 +203,7 @@ void testInterrupts()
 		Serial.print(startMillis_D15);
 		Serial.print(" - ");
 		Serial.println(endMillis_D15);
+		interruptFlag_D15_state = false; // Reinicia la bandera
 	}
 	if (interruptFlag_D16_state)
 	{
@@ -202,6 +211,7 @@ void testInterrupts()
 		Serial.print(startMillis_D16);
 		Serial.print(" - ");
 		Serial.println(endMillis_D16);
+		interruptFlag_D16_state = false; // Reinicia la bandera
 	}
 }
 
@@ -222,6 +232,7 @@ void interruptHandler_D15()
 
 void interruptHandler_D16()
 {
+
     // Manejo de interrupción para el pin D16
     if (digitalRead(interruptPin_D16) == HIGH)
     {
