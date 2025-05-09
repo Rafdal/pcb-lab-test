@@ -486,16 +486,22 @@ uint32_t SFE_SPI_FLASH::getJEDEC()
   //MF7-0, ID15-8, ID7-0
   //MfgID, Device ID Part 1, Device ID Part2
   
+  // MODIFICADO POR RAFA Y AGUS
   _spiPort->beginTransaction(SPISettings(_spiPortSpeed, MSBFIRST, _spiMode));
   digitalWrite(_PIN_FLASH_CS, LOW);
-  _spiPort->transfer(SFE_FLASH_COMMAND_READ_JEDEC_ID); //Read manufacturer and device ID
+  uint8_t buffer[4] = {0};
+  buffer[0] = SFE_FLASH_COMMAND_READ_JEDEC_ID;
+  _spiPort->transfer(buffer, 4);
+
+  // _spiPort->transfer(SFE_FLASH_COMMAND_READ_JEDEC_ID); //Read manufacturer and device ID
+  digitalWrite(_PIN_FLASH_CS, HIGH);
+  _spiPort->endTransaction();
   for (uint8_t x = 0 ; x < 3 ; x++)
   {
     jedecID <<= 8;
-    jedecID |= _spiPort->transfer(0xFF); //Manufacturer ID, then Device ID byte 1, then Device ID byte 2
+    jedecID |= buffer[x + 1]; //Shift in the JEDEC ID bytes
+    //Manufacturer ID, then Device ID byte 1, then Device ID byte 2
   }
-  digitalWrite(_PIN_FLASH_CS, HIGH);
-  _spiPort->endTransaction();
 
   return (jedecID);
 }

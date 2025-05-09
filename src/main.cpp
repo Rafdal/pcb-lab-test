@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <SPI.h>
+
 #include "serial_flash_spi.hpp"
 
 //BASADO EN EL DRIVER DE UN CHABON
@@ -37,7 +37,7 @@ void setup()
 	Serial1.begin(115200); // UART física integrada
 
 	// FLASH
-	if (flash.begin(flashPin_CS, 2000000, SPI, SPI_MODE0))
+	if (flash.begin(flashPin_CS, 8000000, SPI, SPI_MODE0))
 	{
 		Serial.println("Flash SPI inicializado correctamente.");
 	}
