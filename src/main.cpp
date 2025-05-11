@@ -2,53 +2,56 @@
 
 #include <Arduino_LPS22HB.h> //libreria para el sensor barometrico LPS22HB
 #include <Arduino_HS300x.h>	 //libreria para el sensor de temperatura y humedad HS300x
+#include "IMU.hpp"
 
 #include <TimedProcess.h>
 
 #include "serial_flash_spi.hpp"
-//BASADO EN EL DRIVER DE UN CHABON
+// BASADO EN EL DRIVER DE UN CHABON
 // https://github.com/sparkfun/SparkFun_SPI_SerialFlash_Arduino_Library
 
 #include "rpm_sensors.hpp"
 #include "gimbal_drv.hpp"
 
-#include "pin_defs.h"
+#include "pin_defs.h"	// Definiciones de pines
+
+#include <SPI.h>		// Libreria SPI
+
+#include <NRF52_MBED_TimerInterrupt.h>
+
+NRF52_MBED_TimerInterrupt timerInterrupt;
+
+// #include <mbed.h>		// Libreria mbed
+// mbed::Ticker gimbal_ticker; // Ticker para el gimbal
 
 // Pulsos de Baja Frecuencia
 TimedProcessMillis pcen;
 TimedProcessMillis gcen;
 TimedProcessMillis tip_ag;
 TimedProcessMillis tip_pa;
-
-void loop_1s_callback();
-
+TimedProcessMillis spi_2;
+TimedProcessMillis loop_1s;
 
 UART GPS(D2_TX, D3_RX);
 
 inline void togglePin(uint8_t pin) { digitalWrite(pin, !digitalRead(pin)); }
 
-TimedProcessMillis loop_1s;
-
-
-// // Pines para el bus SPI
-// const int CS1 = 10;
-// const int CS2 = 9;
+SFE_SPI_FLASH flash;
+#define SPI_FREQ 4000000
 
 void setup()
 {
-	Serial.begin(115200);
+	Serial.begin(1000000);
 	while (!Serial);
 	Serial.println("Iniciando...");
 	delay(500);
 
-	Serial1.begin(115200);
-	GPS.begin(115200);
-	// SPI
-	SPI.begin(); // Inicializa el bus SPI
-	// pinMode(CS1, OUTPUT);
-	// pinMode(CS2, OUTPUT);
-	// digitalWrite(CS1, HIGH);
-	// digitalWrite(CS2, HIGH);
+	Serial1.begin(1000000);
+	GPS.begin(1000000);
+
+	if ( flash.begin(CS_M, SPI_FREQ, SPI, SPI_MODE0) ) Serial.println("Flash inicializado");
+	else Serial.println("Error al inicializar el flash");
+	
 	// PINES
 	pinMode(PCEN, OUTPUT);
 	pinMode(GCEN, OUTPUT);
@@ -58,62 +61,85 @@ void setup()
 	digitalWrite(TIP_PA, LOW);
 	digitalWrite(PCEN, HIGH);
 	digitalWrite(GCEN, HIGH);
+	
+	//INTERRUPT
+	rpm_sensors_begin(S1_A1, S2_A2);
+	gimbal_begin(IN1_M, IN2_M, IN3_M, ENA_M);
+	
+	Serial.println("Setup completo");
+
+	Wire1.setClock(400000);
+	Wire1.begin();
+
+	// if (!BARO.begin())
+	// 	while (1) Serial.println("Failed to initialize pressure sensor!");
+	// if (!HS300x.begin())
+	// 	Serial.println("Failed to initialize humidity temperature sensor!");
+	IMU_begin();
 
 	pcen.set(720, []() { togglePin(PCEN); });
 	gcen.set(1320, []() { togglePin(GCEN); });
 	tip_ag.set(1630, []() { togglePin(TIP_AG); });
 	tip_pa.set(1180, []() { togglePin(TIP_PA); });
-	loop_1s.set(1000, loop_1s_callback);
-	
-	//INTERRUPT
-	rpm_sensors_begin(S1_A1, S2_A2);
-	gimbal_begin(IN1_M, IN2_M, IN3_M, ENA_M, CS_E);
 
-	Serial.println("Setup completo");
+	SPI.begin();
 
-	// if (!BARO.begin())
-	// { // inicializo
-	// 	Serial.println("Failed to initialize pressure sensor!");
-	// 	while (1)
-	// 		;
-	// }
-	// if (!HS300x.begin())
-	// {
-	// 	Serial.println("Failed to initialize humidity temperature sensor!");
-	// }
+	spi_2.set(10, [](){
+		SPI.beginTransaction(SPISettings(SPI_FREQ, MSBFIRST, SPI_MODE0));
+		digitalWrite(CS_E, LOW);
+		uint8_t buffer[4] = {'H', 'E', 'L', 'L'}; // ACA
+		SPI.transfer(buffer, 4);    // ACA
+		digitalWrite(CS_E, HIGH);
+		SPI.endTransaction();
+	});
+
+	loop_1s.set(1000, [](){
+		Serial1.println("Serial1");
+		GPS.println("GPS");
+
+		// float t = HS300x.readTemperature();
+		// float b = BARO.readPressure();
+		IMU_read();
+
+		// Serial.print("B:");
+		// Serial.print(b, 2);
+		// Serial.print(" T:");
+		// Serial.println(t, 2);
+	});
+
+	if (timerInterrupt.setFrequency(10000, []() { gimbal_run(); } ))
+		Serial.println("Gimbal timer set");
+	else
+		Serial.println("Gimbal timer error");
+
 }
+
 
 void loop()
 {
+	loop_1s.run();
+	spi_2.run();
+
+	// 1 - UART x2
+	while (Serial1.available()) Serial.write((uint8_t)Serial1.read());
+	while (GPS.available()) Serial.write((uint8_t)GPS.read());
+	
+	// 2 - Salidas de baja frecuencia
 	pcen.run();
 	gcen.run();
 	tip_ag.run();
 	tip_pa.run();
-	loop_1s.run();
 
-	gimbal_run();
+	// 3 - SPI x2
+	flash.getJEDEC();
 	
-	// while (Serial1.available())
-	// 	Serial.write((uint8_t)Serial1.read());
-	// while (GPS.available())
-	// 	Serial.write((uint8_t)GPS.read());
+	// 4 IRQ
+	if (rpm_sensors_S1_IRQ_flag()) Serial.println("S1");
+	if (rpm_sensors_S2_IRQ_flag()) Serial.println("S2");
+	
+	// 5 - I2C (sensores) // TODO
+
+	// 6 - PWM para Control FOC
+	gimbal_read();
 }
-
-
-void loop_1s_callback()
-{
-	Serial1.println("HOLA_UART1");
-	GPS.println("HOLA_GPS");
-	// unsigned long s1_delta, s2_delta;
-	// rpm_sensors_read(&s1_delta, &s2_delta);
-	// Serial.print("S1: ");
-	// Serial.print(s1_delta);
-	// Serial.print(" S2: ");
-	// Serial.println(s2_delta);
-
-	// testSPI(); // Testea cada 1s
-	// testI2();  // Testea cada 1s
-}
-
-
 

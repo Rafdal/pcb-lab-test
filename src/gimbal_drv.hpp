@@ -3,7 +3,9 @@
 
 #include <Arduino.h>
 
-void gimbal_begin(int phA, int phB, int phC, int en, int AS5048_SPI_cs);
+void gimbal_begin(int phA, int phB, int phC, int en);
+
+void gimbal_read();
 
 void gimbal_run();
 
