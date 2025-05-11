@@ -44,7 +44,7 @@ void setup()
 	Serial1.begin(115200);
 	GPS.begin(115200);
 	// SPI
-	// SPI.begin(); // Inicializa el bus SPI
+	SPI.begin(); // Inicializa el bus SPI
 	// pinMode(CS1, OUTPUT);
 	// pinMode(CS2, OUTPUT);
 	// digitalWrite(CS1, HIGH);
@@ -67,7 +67,7 @@ void setup()
 	
 	//INTERRUPT
 	rpm_sensors_begin(S1_A1, S2_A2);
-	gimbal_begin(IN1_M, IN2_M, IN3_M, ENA_M);
+	gimbal_begin(IN1_M, IN2_M, IN3_M, ENA_M, CS_E);
 
 	Serial.println("Setup completo");
 
