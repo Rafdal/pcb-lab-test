@@ -1,6 +1,4 @@
 
-#include <SimpleFOC.h>
-
 // #include <SPI.h>
 
 // BLDC motor & driver instance

@@ -2,6 +2,7 @@
 #define GIMBAL_DRV_HPP
 
 #include <Arduino.h>
+#include <SimpleFOC.h>
 
 void gimbal_begin(int phA, int phB, int phC, int en);
 
