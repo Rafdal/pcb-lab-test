@@ -57,6 +57,16 @@ bool SFE_SPI_FLASH::begin(uint8_t user_CSPin, uint32_t spiPortSpeed, SPIClass &s
 
   _spiPort->begin(); //Turn on SPI hardware
 
+  SPI.beginTransaction(settings);
+	buf[0] = 0x9F; // Read Manufacturer ID
+	// buf[1] = 0x00;
+	// buf[2] = 0x00;
+	// buf[3] = 0x00;
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(buf, 4);
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+
   return (isConnected()); //Check that the flash is responding correctly
 }
 

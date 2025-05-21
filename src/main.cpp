@@ -5,127 +5,254 @@
 //BASADO EN EL DRIVER DE UN CHABON
 // https://github.com/sparkfun/SparkFun_SPI_SerialFlash_Arduino_Library
 
-// Funciones:
-void testInterrupts();
-
-void interruptHandler_D15();
-void interruptHandler_D16();
-
-// INTERRUPT
-const uint8_t interruptPin_D15 = 15; // Pin de interrupción
-const uint8_t interruptPin_D16 = 16; // Pin de interrupción
-
-volatile bool interruptFlag_D15_state = false; // Indicador de interrupción // TRUE: RISE FALSE: FALL
-volatile bool interruptFlag_D16_state = false;
-
-// Variables para almacenar tiempos
-volatile unsigned long startMillis_D15 = 0;
-volatile unsigned long endMillis_D15 = 0;
-volatile unsigned long startMillis_D16 = 0;
-volatile unsigned long endMillis_D16 = 0;
+#include "pin_defs.h"
 
 // FLASH SPI
-const uint8_t flashPin_CS = 14;	  // Pin de Flash SPI
+const uint8_t flashPin_CS = CS_M;	  // Pin de Flash SPI
 SFE_SPI_FLASH flash; // Instancia de la clase SFE_SPI_FLASH
+
+#include <mbed.h>
+#include <pinDefinitions.h>
+mbed::DigitalOut *gpio_pin = nullptr;   // gpio pin for time measurement purposes
+
+void prettyPrintBIN(uint8_t val)
+{
+    for (int i = 7; i >= 0; i--)
+    {
+        if (val & (1 << i))
+            Serial.write((uint8_t)'1');
+        else
+            Serial.write((uint8_t)'0');
+    }
+    Serial.println();
+}
+
+auto settings = SPISettings(500000, MSBFIRST, SPI_MODE0);
+uint8_t flash_buf[255+4];
+
+// SRP0 | BP4 | BP3 | BP2 | BP1 | BP0 | WEL (Write Enabled) | BUSY
+#define BUSY_STATUS_FLAG 0x01
+uint8_t readStatus1()
+{
+	flash_buf[0] = 0x05; // Read Status Register
+	flash_buf[1] = 0x00;
+	SPI.beginTransaction(settings);
+	digitalWrite(CS_M, LOW);
+	SPI.transfer(flash_buf, 2);
+	digitalWrite(CS_M, HIGH);
+	SPI.endTransaction();
+	return flash_buf[1];
+}
+
+enum {ERASE_4KB=0x20, ERASE_32KB=0x52, ERASE_64KB=0xD8};
+
+bool blockErase(uint16_t page, uint8_t block_size_opcode = ERASE_4KB)
+{
+	if ((readStatus1() & 0x01) || page > (uint16_t)0x7FF)
+		return false; // Device is busy
+	SPI.beginTransaction(settings);
+	digitalWrite(CS_M, LOW);
+	SPI.transfer(0x06); // Write Enable
+	digitalWrite(CS_M, HIGH);
+	SPI.endTransaction();
+
+	flash_buf[0] = block_size_opcode; // Block Erase command
+	flash_buf[1] = (page >> 8) & 0xFF;	// Address byte MSB
+	flash_buf[2] = page & 0xFF;	// Address byte LSB
+	flash_buf[3] = 0x0;	// Address byte LSB
+	SPI.beginTransaction(settings);
+	digitalWrite(CS_M, LOW);
+	SPI.transfer(flash_buf, 4);
+	digitalWrite(CS_M, HIGH);
+	SPI.endTransaction();
+	return true;
+}
+
+bool writeData(uint16_t page, uint8_t low, uint8_t *data, uint8_t size)
+{
+	if ((readStatus1() & 0x01) || page > (uint16_t)0x7FF)
+		return false; // Device is busy
+	SPI.beginTransaction(settings);
+	digitalWrite(CS_M, LOW);
+	SPI.transfer(0x06); // Write Enable
+	digitalWrite(CS_M, HIGH);
+	SPI.endTransaction();
+
+	flash_buf[0] = 0x02; // Byte/Page program
+	flash_buf[1] = (page >> 8) & 0xFF;	// Address byte MSB
+	flash_buf[2] = page & 0xFF;	// Address byte LSB
+	flash_buf[3] = low;	// Address byte LSB
+	memcpy(&flash_buf[4], data, size);
+	SPI.beginTransaction(settings);
+	digitalWrite(CS_M, LOW);
+	SPI.transfer(flash_buf, size + 4);
+	digitalWrite(CS_M, HIGH);
+	SPI.endTransaction();
+	return true;
+}
+
+void readData(uint16_t page, uint8_t low, uint8_t *data, uint8_t size)
+{
+	flash_buf[0] = 0x03; // Read Array
+	flash_buf[1] = (page >> 8) & 0xFF;	// Address byte MSB
+	flash_buf[2] = page & 0xFF;	// Address byte LSB
+	flash_buf[3] = low;	// Address byte LSB
+	SPI.beginTransaction(settings);
+	digitalWrite(CS_M, LOW);
+	SPI.transfer(flash_buf, size + 4);
+	digitalWrite(CS_M, HIGH);
+	SPI.endTransaction();
+	memcpy(data, &flash_buf[4], size);
+}
 
 void setup()
 {
 	Serial.begin(115200); // Consola Serial
-	while (!Serial)
-		;
-	// UART
-	Serial1.begin(115200); // UART física integrada
+	while (!Serial);
 
+	mbed::DigitalInOut* tmpgpio = digitalPinToGpio(S1_A1);
+	if (tmpgpio != NULL)
+		delete tmpgpio;
+	gpio_pin = new mbed::DigitalOut(digitalPinToPinName(S1_A1), LOW);
+
+	delay(500);
+
+	gpio_pin->write(1);
 	// FLASH
-	if (flash.begin(flashPin_CS, 8000000, SPI, SPI_MODE0))
+	bool flash_status = flash.begin(flashPin_CS, 500000, SPI, SPI_MODE0);
+	gpio_pin->write(0);
+
+	delay(10);
+	if (flash_status)
 	{
-		Serial.println("Flash SPI inicializado correctamente.");
+		Serial.println("Flash OK");
 	}
 	else
 	{
-		Serial.println("Error al inicializar Flash SPI.");
+		Serial.println("Flash ERROR");
 	}
 
-	sfe_flash_manufacturer_e mfgID = flash.getManufacturerID();
-	if (mfgID != SFE_FLASH_MFG_UNKNOWN)
+
+	// SPI.beginTransaction(settings);
+	// buf[0] = 0x9F; // Read Manufacturer ID
+	// buf[1] = 0x00;
+	// buf[2] = 0x00;
+	// buf[3] = 0x00;
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(buf, 4);
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+
+
+	// SPI.beginTransaction(settings);
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(0x06); // Write Enable
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+
+	// delayMicroseconds(10);
+	// SPI.beginTransaction(settings);
+	// buf[0] = 0x05; // Read Status Register
+	// buf[1] = 0x00;
+	// buf[2] = 0x00;
+	// buf[3] = 0x00;
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(buf, 4);
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+
+
+	// delayMicroseconds(10);
+	// SPI.beginTransaction(settings);
+	// buf[0] = 0x02; // Byte/Page program
+	// buf[1] = 0x00;	// Address byte MSB
+	// buf[2] = 0x00;	// Address byte MMSB
+	// buf[3] = 0x00;	// Address byte LSB
+	// buf[4] = 'H';	// Data
+	// buf[5] = 'O';	// Data
+	// buf[6] = 'L';	// Data
+	// buf[7] = 'A';	// Data
+	// buf[8] = 0x00;	// Data
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(buf, 9);
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+
+	// delayMicroseconds(10);
+	// SPI.beginTransaction(settings);
+	// buf[0] = 0x05; // Read Status Register
+	// buf[1] = 0x00;
+	// buf[2] = 0x00;
+	// buf[3] = 0x00;
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(buf, 4);
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+
+
+	// delayMicroseconds(10);
+	// SPI.beginTransaction(settings);
+	// buf[0] = 0x03; // Read Array
+	// buf[1] = 0x00;	// Address byte MSB
+	// buf[2] = 0x00;	// Address byte MMSB
+	// buf[3] = 0x00;	// Address byte LSB
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(buf, 10);
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+
+
+	// Serial.println("Status2");
+	// SPI.beginTransaction(settings);
+	// buf[0] = 0x35; // Read Status Register
+	// buf[1] = 0x00;
+	// buf[2] = 0x00;
+	// buf[3] = 0x00;
+	// digitalWrite(CS_M, LOW);
+	// SPI.transfer(buf, 4);
+	// digitalWrite(CS_M, HIGH);
+	// SPI.endTransaction();
+	// for (uint8_t i = 0; i < 3; i++)
+	// 	prettyPrintBIN(buf[i+1]);
+	
+	gpio_pin->write(1);
+	blockErase(0x000);
+	gpio_pin->write(0);
+	// delay(1);
+
+	char write_buf[] = "HOLA QUE TAL PAPA";
+	uint8_t* ptr = (uint8_t*) &write_buf[0];
+
+	gpio_pin->write(1);
+	while(readStatus1() & BUSY_STATUS_FLAG);
+	gpio_pin->write(0);
+
+	gpio_pin->write(1);
+	writeData(0x000, 0x00, ptr, sizeof(write_buf));
+	gpio_pin->write(0);
+
+	uint8_t read_buf[32];
+	memset(read_buf, 0, 32);
+
+	gpio_pin->write(1);
+	readData(0x000, 0x00, read_buf, sizeof(read_buf));
+	gpio_pin->write(0);
+
+	for (uint8_t i = 0; i < 32; i++)
 	{
-		Serial.print(F("Manufacturer: "));
-		Serial.println(flash.manufacturerIDString(mfgID));
+		Serial.print(read_buf[i], HEX);
+		Serial.print(" ");
 	}
-	else
+	Serial.println();
+	for (uint8_t i = 0; i < 32; i++)
 	{
-		uint8_t unknownID = flash.getRawManufacturerID(); // Read the raw manufacturer ID
-		Serial.print(F("Unknown manufacturer ID: 0x"));
-		if (unknownID < 0x10)
-			Serial.print(F("0")); // Pad the zero
-		Serial.println(unknownID, HEX);
+		Serial.write(read_buf[i]);
+		Serial.print(" ");
 	}
-
-	Serial.print(F("Device ID: 0x"));
-	Serial.println(flash.getDeviceID(), HEX);
-
-
-
-	// INTERRUPT
-	pinMode(interruptPin_D15, INPUT); // Pin de interrupción
-	pinMode(interruptPin_D16, INPUT); // Pin de interrupción
-	// Configuración de interrupciones
-	attachInterrupt(digitalPinToInterrupt(interruptPin_D15), interruptHandler_D15, CHANGE);
-	attachInterrupt(digitalPinToInterrupt(interruptPin_D16), interruptHandler_D16, CHANGE);
+	Serial.println();
 }
 
 void loop()
 {
-	testInterrupts(); // Testea interrupciones
-}
 
-void testInterrupts()
-{
-	// Manejo de interrupciones para el pin D15
-	if (interruptFlag_D15_state)
-	{
-		Serial.print("D15: ");
-		Serial.print(startMillis_D15);
-		Serial.print(" - ");
-		Serial.println(endMillis_D15);
-		interruptFlag_D15_state = false; // Reinicia el indicador de interrupción
-	}
-	if (interruptFlag_D16_state)
-	{
-		Serial.print("D16: ");
-		Serial.print(startMillis_D16);
-		Serial.print(" - ");
-		Serial.println(endMillis_D16);
-		interruptFlag_D16_state = false; // Reinicia el indicador de interrupción
-	}
-}
-
-void interruptHandler_D15()
-{
-	// Manejo de interrupción para el pin D15
-	if (digitalRead(interruptPin_D15) == HIGH)
-	{
-		startMillis_D15 = millis(); // Captura el tiempo de inicio
-		interruptFlag_D15_state = true;
-	}
-	else
-	{
-		endMillis_D15 = millis(); // Captura el tiempo de finalización
-		interruptFlag_D15_state = false;
-	}
-}
-
-void interruptHandler_D16()
-{
-	// Manejo de interrupción para el pin D16
-	if (digitalRead(interruptPin_D16) == HIGH)
-	{
-		startMillis_D16 = millis(); // Captura el tiempo de inicio
-		interruptFlag_D16_state = true;
-	}
-	else
-	{
-		endMillis_D16 = millis(); // Captura el tiempo de finalización
-		interruptFlag_D16_state = false;
-	}
 }
