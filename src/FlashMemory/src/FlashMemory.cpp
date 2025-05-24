@@ -74,7 +74,7 @@ bool blockErase(uint16_t page, uint8_t block_size_opcode = ERASE_4KB)
 	return true;
 }
 
-bool writeData(uint16_t page, uint8_t low, uint8_t *data, uint8_t size)
+bool FlashMemory::writeData(uint16_t page, uint8_t low, uint8_t *data, uint8_t size)
 {
 	if ((readStatus1() & 0x01) || page > (uint16_t)0x7FF)
 		return false; // Device is busy
@@ -97,7 +97,7 @@ bool writeData(uint16_t page, uint8_t low, uint8_t *data, uint8_t size)
 	return true;
 }
 
-void readData(uint16_t page, uint8_t low, uint8_t *data, uint8_t size)
+void FlashMemory::readData(uint16_t page, uint8_t low, uint8_t *data, uint8_t size)
 {
 	flash_buf[0] = 0x03; // Read Array
 	flash_buf[1] = (page >> 8) & 0xFF;	// Address byte MSB
