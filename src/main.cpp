@@ -51,7 +51,7 @@ void setup()
 	encoder.init();
 	motor.linkSensor(&encoder); // link the motor to the encoder
 
-	motor.sensor_direction = Direction::CW; // set the sensor direction
+	// motor.sensor_direction = Direction::CW; // set the sensor direction
 
 	// driver config
 	driver.voltage_power_supply = 8;
@@ -61,10 +61,10 @@ void setup()
 	// aligning voltage [V]
 	motor.voltage_sensor_align = 3;  //  QUE ONDA ESTO ???  (No tengo sensor de voltage)
 
-	// motor.foc_modulation = FOCModulationType::SpaceVectorPWM; // set modulation type
+	motor.foc_modulation = FOCModulationType::SpaceVectorPWM; // set modulation type
 
 	// set motion control loop to be used
-	motor.controller = MotionControlType::angle;
+	motor.controller = MotionControlType::angle; // set the controller to angle control
 
 	motor.PID_velocity.P = 0.2f;
 	motor.PID_velocity.I = 20;
@@ -74,7 +74,7 @@ void setup()
 	// angle P controller
 	motor.P_angle.P = 20;
 	// maximal velocity of the position control
-	motor.velocity_limit = 20;
+	motor.velocity_limit = 50;
 
 	// default voltage_power_supply
 	motor.voltage_limit = 2; // Volts
@@ -86,6 +86,12 @@ void setup()
 	motor.init();
 	// align encoder and start FOC
 	motor.initFOC();
+
+	if(!motor.pp_check_result) {
+		Serial.println(F("Motor pole pairs check failed!"));
+		Serial.println(F("Please check the motor wiring and configuration."));
+		// while(1); // stop execution
+	}
 
 	// add target command M
 	// command.add('M', doMotor, "motor");
