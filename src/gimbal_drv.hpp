@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include <SimpleFOC.h>
+#include <SimpleFOCDrivers.h>
+#include <encoders/as5048a/MagneticSensorAS5048A.h>
 
 void gimbal_begin(int phA, int phB, int phC, int en);
 
