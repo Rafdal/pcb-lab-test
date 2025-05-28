@@ -7,55 +7,42 @@
 #include <pinDefinitions.h>
 mbed::DigitalOut *gpio_pin = nullptr;   // gpio pin for time measurement purposes
 
-// UART gps(D3_RX, D2_TX); // GPS Serial
-// UART gps(D2_TX, D3_RX); // GPS Serial
+UART gps_uart(D3_RX, D2_TX); // GPS UART
+#include <TinyGPSPlus.h>
+TinyGPSPlus gps; // GPS instance
 
-#include "gps_test_data.h"
-uint8_t index_connected = 0;
-uint8_t index_disconnected = 0;
-unsigned long last_millis = 0;
+uint8_t change_gps_baudrate[] = {0xB5,0x62,0x06,0x00,0x14,0x00,0x01,0x00,0x00,0x00,0xD0,0x08,0x00,0x00,0x00,0x84,0x03,0x00,0x07,0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x84,0xE8};
+uint8_t save_gps_config[] = {0xB5,0x62,0x06,0x09,0x0D,0x00,0x00,0x00,0x00,0x00,0xFF,0xFF,0x00,0x00,0x00,0x00,0x00,0x00,0x03,0x1D,0xAB};
 
 void setup()
 {
-	Serial.begin(115200); // Consola Serial
+	Serial.begin(1000000); // Consola Serial
 	while (!Serial);
 
-	mbed::DigitalInOut* tmpgpio = digitalPinToGpio(S1_A1);
-	if (tmpgpio != NULL)
-		delete tmpgpio;
-	gpio_pin = new mbed::DigitalOut(digitalPinToPinName(S1_A1), LOW);
+	gps_uart.begin(9600); // GPS UART at 9600 baud
 
-	delay(500);
-
-	gpio_pin->write(1);
-	// PONER CODIGO PARA MEDIR TIEMPO ACA (SEA EN SETUP O EN LOOP)
-	gpio_pin->write(0);
+	gps_uart.write(change_gps_baudrate, sizeof(change_gps_baudrate)); // Change GPS baud rate
+	delay(100); // Wait for the GPS to change baud rate
+	gps_uart.write(save_gps_config, sizeof(save_gps_config)); // Save GPS configuration
 }
+
+String gata;
 
 void loop()
 {
-	if( millis() - last_millis > 1000 )
+	while (gps_uart.available()) 
 	{
-		gpio_pin->write(1);
-		if (index_connected < GPS_CONNECTED_TEST_DATA_LEN)
+		char c = gps_uart.read();
+			gps.encode(c);
+		if (gps.location.isUpdated()) 
 		{
-			Serial.print(gps_test_data_connected[index_connected]);
-			index_connected++;
-		}
-		else if (index_disconnected < GPS_DISCONNECTED_TEST_DATA_LEN)
-		{
-			Serial.print(gps_test_data_disconnected[index_disconnected]);
-			index_disconnected++;
+			data = "Lat: " + String(gps.location.lat(), 6) + ", Lng: " + String(gps.location.lng(), 6);
 		}
 		else
 		{
-			Serial.println("\nFIN DEL TEST\n");
-			delay(2000);
-			index_connected = 0;
-			index_disconnected = 0;
+			data = "No GPS fix";
 		}
-		gpio_pin->write(0);
-		last_millis = millis();
 	}
-	// Leer GPS ?
+    Serial.println(data);
+	data.
 }
