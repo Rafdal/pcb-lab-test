@@ -2,8 +2,6 @@
 #define PIN_DEFS_H
 
 #warning "USANDO PIN_DEFS.H (SOLO PARA PCB FINAL)"
-#warning "USANDO PIN_DEFS.H (SOLO PARA PCB FINAL)"
-#warning "USANDO PIN_DEFS.H (SOLO PARA PCB FINAL)"
 
 #define PCEN 	4u		// Payload Camera "Enable"
 #define GCEN 	5u		// Ground Camera "Enable"
