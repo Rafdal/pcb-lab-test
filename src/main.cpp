@@ -17,6 +17,8 @@ static float xAcc, yAcc, zAcc;
 static float xGyro, yGyro, zGyro;
 static float xMag, yMag, zMag;
 
+static float zGyro_acc = 0;
+
 void setup()
 {
 	Serial.begin(1000000);
@@ -62,7 +64,8 @@ void setup()
 		// memcpy(&tx_buffer[2], &xGyro, sizeof(xGyro));
 		// memcpy(&tx_buffer[6], &yGyro, sizeof(yGyro));
 		// memcpy(&tx_buffer[10], &zGyro, sizeof(zGyro));
-		memcpy(&tx_buffer[2], &zGyro, sizeof(zGyro));
+		zGyro_acc += zGyro * 0.01; // Integrate gyroscope data for 10 ms intervals
+		memcpy(&tx_buffer[2], &zGyro_acc, sizeof(zGyro_acc));
 		Serial.write(tx_buffer, sizeof(tx_buffer));
 		// Serial.print('#');
 		// Serial.print(xGyro, 2);
