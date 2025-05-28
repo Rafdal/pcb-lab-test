@@ -26,23 +26,25 @@ void setup()
 	gps_uart.write(save_gps_config, sizeof(save_gps_config)); // Save GPS configuration
 }
 
-String gata;
-
 void loop()
 {
 	while (gps_uart.available()) 
 	{
 		char c = gps_uart.read();
-			gps.encode(c);
-		if (gps.location.isUpdated()) 
+		if(gps.encode(c))
 		{
-			data = "Lat: " + String(gps.location.lat(), 6) + ", Lng: " + String(gps.location.lng(), 6);
-		}
-		else
-		{
-			data = "No GPS fix";
+			Serial.print("gps.encode(c) TRUE");
+			Serial.print("Lat: " + String(gps.location.lat(), 6) + ", Lng: " + String(gps.location.lng(), 6));
+			Serial.print("Alt: " + String(gps.location.alt(), 6));
+			Serial.print("Date: " + String(gps.date.year()) + "-" + String(gps.date.month()) + "-" + String(gps.date.day()));
+			if (gps.location.isValid()) 
+				Serial.print("Location is valid");
+			else
+				Serial.print("Location is invalid");
+			if (gps.location.isUpdated()) 
+				Serial.print("Location is updated");
+			else
+				Serial.print("Location is not updated");
 		}
 	}
-    Serial.println(data);
-	data.
 }
