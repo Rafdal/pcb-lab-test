@@ -119,7 +119,7 @@ void loop()
 
 	target_angle = 180 - angulo_orientacion;
 	// Siendo angulo_orientacion el angulo que devuelve el sistema de orientacion del CANSAT.
-
+	// Test
 	motor.move(target_angle);
 
 	//command.run();
