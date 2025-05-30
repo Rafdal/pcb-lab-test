@@ -18,7 +18,7 @@ mbed::DigitalOut *gpio_tip_pa = nullptr;
 #include <encoders/as5048a/MagneticSensorAS5048A.h>
 
 #include "Orientation.h"	// Orientacion del CANSAT
-
+#include "magnetometerCalib.h"
 BLDCMotor motor = BLDCMotor(7); // BLDC motor instance (7 pole pairs)
 BLDCDriver3PWM driver(IN1_M, IN2_M, IN3_M, ENA_M);
 MagneticSensorAS5048A encoder(CS_E, true); // Magnetic sensor instance
@@ -120,7 +120,8 @@ void setup()
 	Serial.println("IMU Ready");
 
 	// Funcion de calibracion de la IMU
-
+	Calibrar(); // Calibrar el magnetometro
+	
 	// Funcion de seteo de posicion inicial del motor
 	//TODO:
 
