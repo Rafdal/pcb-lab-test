@@ -102,13 +102,27 @@ void setup()
 	_delay(1000);
 }
 
+float angulo_orientacion = 180.0f - 10.0f; // Angulo de orientacion del motor
+// angulo_orientacion pertenece a [0 - 360]°
+
 void loop()
 {
 	// gpio_tip_pa->write(1);
 	// gpio_tip_pa->write(0);
+
+	// CANSAT tiene seteado Norte a 180°.
+	// El motor debe estar inicialmente ORIENTADO IGUALMENTE QUE EL ARDUINO NANO
+	// Por lo que si el arduino Nano mide 170° por ejemplo,
+	// Entonces el motor debe rotar 10° en el sentido de las agujas del reloj
+	// Es decir, por cada rotacion -theta que tenga el arduino Nano,
+	// el motor debe rotar theta.
+
+	target_angle = 180 - angulo_orientacion;
+	// Siendo angulo_orientacion el angulo que devuelve el sistema de orientacion del CANSAT.
+
 	motor.move(target_angle);
 
-	command.run();
+	//command.run();
 
 	motor.loopFOC();
 }
