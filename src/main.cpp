@@ -121,7 +121,7 @@ void setup()
 
 	// Funcion de calibracion de la IMU
 	Calibrar(); // Calibrar el magnetometro
-	
+
 	// Funcion de seteo de posicion inicial del motor
 	//TODO:
 
@@ -139,6 +139,10 @@ void loop()
 	// Entonces el motor debe rotar 10° en el sentido de las agujas del reloj
 	// Es decir, por cada rotacion -theta que tenga el arduino Nano,
 	// el motor debe rotar theta.
+
+	// EL TEST ASUME QUE LA REFERENCIA ABOSLUTA (O UN ANGULO CONOCIDO DESDE ESTA) DEL MOTOR (angle = 0° + offset conocido)
+	// ES IGUAL A LA ORIENTACION DEL ARDUINO NANO
+	// ES DECIR, Ambos alineados inicialmente 
 
 	if (IMU.readMagneticField(mx, my, mz)) {
       heading = computeHeading(mx, my, offsetX, offsetY);
