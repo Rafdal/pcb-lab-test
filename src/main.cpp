@@ -26,6 +26,8 @@ MagneticSensorAS5048A encoder(CS_E, true); // Magnetic sensor instance
 Commander command = Commander(Serial);
 // static void doMotor(char *cmd) { command.motor(&motor, cmd); }
 
+#define OFFSET_HEADING 180.0f // Offset for the heading, since CANSAT has North at 180°
+
 float target_angle = 0.0f; // target angle for the motor
 
 // heading en grados [0, 360]°
@@ -79,7 +81,7 @@ void setup()
 	motor.controller = MotionControlType::angle; // set the controller to angle control
 
 	motor.PID_velocity.P = 0.001f;
-	motor.PID_velocity.I = 1;
+	motor.PID_velocity.I = 0.5;
 	motor.PID_velocity.D = 0;
 
 	motor.LPF_velocity.Tf = 0.01f;
@@ -127,16 +129,20 @@ void setup()
 
 	_delay(1000);
 }
-
-float movingAverage[50] = {0};
+#define MOVING_AVERAGE_SIZE 1
+float vueltas = 0;
+float movingAverage[MOVING_AVERAGE_SIZE] = {0};
+float previousHeading = 0; // Variable para almacenar el heading anterior
 int i = 0;
 void loop()
 {
-	if (i < 50){
+	if (i < MOVING_AVERAGE_SIZE){
 		i++;
 	} else {
 		i = 0;
 	}
+
+
 	// gpio_tip_pa->write(1);
 	// gpio_tip_pa->write(0);
 
@@ -157,12 +163,16 @@ void loop()
 	movingAverage[i] = heading; // Guardar el heading en el array de moving average
 	// Calcular el promedio del moving average
 	float sum = 0;
-	for (int j = 0; j < 50; j++) {
+	for (int j = 0; j < MOVING_AVERAGE_SIZE; j++) {
 		sum += movingAverage[j];
 	}
-	heading = sum / 50.0f; // Promedio del moving average
-
-	target_angle = (180 - heading)*PI / 180.0f; // Convertir a radianes
+	heading = sum / MOVING_AVERAGE_SIZE; // Promedio del moving average
+	if (heading - previousHeading > 180.0f) {
+		vueltas += 1; // Ajustar si el cambio es mayor a 180°
+	} else if (heading - previousHeading < -180.0f) {
+		vueltas -= 1; // Ajustar si el cambio es menor a -180°
+	}
+	target_angle = (90 - (heading - vueltas * 360))*PI / 180.0f; // Convertir a radianes
 	// Serial.print("Heading: ");
 	// Serial.println(heading);
 	// Serial.print("Target angle: ");
@@ -172,6 +182,6 @@ void loop()
 	//command.run();
 
 	motor.loopFOC();
-
+	previousHeading = heading; // Actualizar el heading anterior
 }
 
