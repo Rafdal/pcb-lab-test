@@ -78,8 +78,8 @@ void setup()
 	// set motion control loop to be used
 	motor.controller = MotionControlType::angle; // set the controller to angle control
 
-	motor.PID_velocity.P = 0.2f;
-	motor.PID_velocity.I = 20;
+	motor.PID_velocity.P = 0.001f;
+	motor.PID_velocity.I = 1;
 	motor.PID_velocity.D = 0;
 
 	motor.LPF_velocity.Tf = 0.01f;
@@ -120,7 +120,7 @@ void setup()
 	Serial.println("IMU Ready");
 
 	// Funcion de calibracion de la IMU
-	Calibrar(); // Calibrar el magnetometro
+	//Calibrar(); // Calibrar el magnetometro
 
 	// Funcion de seteo de posicion inicial del motor
 	//TODO:
@@ -128,8 +128,15 @@ void setup()
 	_delay(1000);
 }
 
+float movingAverage[50] = {0};
+int i = 0;
 void loop()
 {
+	if (i < 50){
+		i++;
+	} else {
+		i = 0;
+	}
 	// gpio_tip_pa->write(1);
 	// gpio_tip_pa->write(0);
 
@@ -147,12 +154,19 @@ void loop()
 	if (IMU.readMagneticField(mx, my, mz)) {
       heading = computeHeading(mx, my, offsetX, offsetY);
     }
+	movingAverage[i] = heading; // Guardar el heading en el array de moving average
+	// Calcular el promedio del moving average
+	float sum = 0;
+	for (int j = 0; j < 50; j++) {
+		sum += movingAverage[j];
+	}
+	heading = sum / 50.0f; // Promedio del moving average
 
-	target_angle = 180 - heading;
-	Serial.print("Heading: ");
-	Serial.println(heading);
-	Serial.print("Target angle: ");
-	Serial.println(target_angle);
+	target_angle = (180 - heading)*PI / 180.0f; // Convertir a radianes
+	// Serial.print("Heading: ");
+	// Serial.println(heading);
+	// Serial.print("Target angle: ");
+	// Serial.println(target_angle);
 	motor.move(target_angle);
 
 	//command.run();
