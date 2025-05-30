@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Arduino_BMI270_BMM150.h> // filepath: c:\Users\Usuario\Desktop\Santino\pcb-lab-test\src\main.cpp
 
 #include <TimedProcess.h>
 
@@ -16,6 +17,8 @@ mbed::DigitalOut *gpio_tip_pa = nullptr;
 #include <SimpleFOCDrivers.h>
 #include <encoders/as5048a/MagneticSensorAS5048A.h>
 
+#include "Orientation.h"	// Orientacion del CANSAT
+
 BLDCMotor motor = BLDCMotor(7); // BLDC motor instance (7 pole pairs)
 BLDCDriver3PWM driver(IN1_M, IN2_M, IN3_M, ENA_M);
 MagneticSensorAS5048A encoder(CS_E, true); // Magnetic sensor instance
@@ -24,6 +27,15 @@ Commander command = Commander(Serial);
 // static void doMotor(char *cmd) { command.motor(&motor, cmd); }
 
 float target_angle = 0.0f; // target angle for the motor
+
+// heading en grados [0, 360]°
+float heading = 0;
+// Componentes cartesianos del vector B terrestre
+float mx, my, mz;
+
+// Variables de almacenamiento de offset (soft and hard-iron)
+float offsetX = -38.500000;
+float offsetY = 23.500000;
 
 void doTarget(char* cmd) { command.scalar(&target_angle, cmd); }
 
@@ -99,11 +111,21 @@ void setup()
 
 	Serial.println(F("Motor ready."));
 	Serial.println(F("Set the target angle using serial terminal:"));
+
+	// Inicializacion de la IMU
+	IMU.setContinuousMode();
+	if (!IMU.begin()) {
+		while (1) Serial.println("Error initializing IMU");
+	}
+	Serial.println("IMU Ready");
+
+	// Funcion de calibracion de la IMU
+
+	// Funcion de seteo de posicion inicial del motor
+	//TODO:
+
 	_delay(1000);
 }
-
-float angulo_orientacion = 180.0f - 10.0f; // Angulo de orientacion del motor
-// angulo_orientacion pertenece a [0 - 360]°
 
 void loop()
 {
@@ -117,13 +139,21 @@ void loop()
 	// Es decir, por cada rotacion -theta que tenga el arduino Nano,
 	// el motor debe rotar theta.
 
-	target_angle = 180 - angulo_orientacion;
-	// Siendo angulo_orientacion el angulo que devuelve el sistema de orientacion del CANSAT.
-	// Test
+	if (IMU.readMagneticField(mx, my, mz)) {
+      heading = computeHeading(mx, my, offsetX, offsetY);
+    }
+
+	target_angle = 180 - heading;
+
 	motor.move(target_angle);
 
 	//command.run();
 
 	motor.loopFOC();
+
+
+
+
+
 }
 
