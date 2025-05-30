@@ -38,7 +38,7 @@ void loop() {
   }
 
   // Print location info when available
-  if (gps.location.isUpdated()) {
+  if (gps.satellites.value() != 0) {
     String data = "Latitude: " + String(gps.location.lat(), 6)
                 + ", Longitude: " + String(gps.location.lng(), 6)
                 + ", Altitude: " + String(gps.altitude.meters(), 2) + "m"
