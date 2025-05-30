@@ -11,12 +11,15 @@ float getScaleX()  { return scaleX; }
 float getScaleY()  { return scaleY; }
 
 void Calibrar() {
+    Serial.println("Iniciando calibración del magnetómetro...");
     float minX =  1e6, maxX = -1e6;
     float minY =  1e6, maxY = -1e6;
     const unsigned long calibDuration = 30000; // 30 segundos
     unsigned long calibStart = millis();
 
     while (millis() - calibStart < calibDuration) {
+        Serial.print("Calibrando... Tiempo restante: ");
+        Serial.println((calibDuration - (millis() - calibStart)) / 1000);
         float mx, my, mz;
         if (IMU.readMagneticField(mx, my, mz)) {
             minX = min(minX, mx);

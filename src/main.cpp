@@ -149,16 +149,15 @@ void loop()
     }
 
 	target_angle = 180 - heading;
-
+	Serial.print("Heading: ");
+	Serial.println(heading);
+	Serial.print("Target angle: ");
+	Serial.println(target_angle);
 	motor.move(target_angle);
 
 	//command.run();
 
 	motor.loopFOC();
-
-
-
-
 
 }
 
